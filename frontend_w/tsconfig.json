@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/shared/**/*",
+    "src/features/academics/**/*",
+    "src/features/accounts/**/*",
+    "src/features/assessment/**/*",
+    "src/features/auth/api/**/*",
+    "src/features/auth/hooks/**/*",
+    "src/features/auth/types/**/*",
+    "src/features/auth/utils/**/*",
+    "src/features/billing/**/*",
+    "src/features/content/api/**/*",
+    "src/features/content/components/**/*",
+    "src/features/content/screens/**/*",
+    "src/features/gamification/**/*",
+    "src/features/mcq/**/*",
+    "src/features/notifications/**/*",
+    "src/features/practice/**/*",
+    "src/features/progress/**/*",
+    "src/features/social/**/*"
+  ]
+}

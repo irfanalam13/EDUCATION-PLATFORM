@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "EduPlatform Nepal",
+    "slug": "edu-platform-nepal",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "eduplatform",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#f8fafc"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eduplatform.nepal"
+    },
+    "android": {
+      "package": "com.eduplatform.nepal",
+      "permissions": ["NOTIFICATIONS"]
+    },
+    "extra": {
+      "apiBaseUrl": "http://127.0.0.1:8000",
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-notifications"
+    ]
+  }
+}

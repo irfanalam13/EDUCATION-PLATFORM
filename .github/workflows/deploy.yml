@@ -1,0 +1,47 @@
+# Deploy to a VPS over SSH by building the compose stack on the server.
+# TEMPLATE: runs only on manual dispatch and needs these repo secrets:
+#   SSH_HOST, SSH_USER, SSH_KEY   target server + private key
+#   DEPLOY_PATH                   dir on the server with a clone of this repo + .env.prod
+#
+# Rollback: re-run with `ref` set to a previous tag/SHA — the server checks it
+# out and rebuilds, so you can return to any known-good commit.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or SHA). Use a prior tag/SHA to roll back."
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH (build on server + health gate)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch --all --tags --prune
+            git checkout --force "${{ inputs.ref }}"
+            git reset --hard "origin/${{ inputs.ref }}" 2>/dev/null || git reset --hard "${{ inputs.ref }}"
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml ps
+            # Health gate: fail (so you can re-run with a prior ref) if backend stays unhealthy.
+            for i in $(seq 1 15); do
+              if curl -fsS http://127.0.0.1/healthz/ >/dev/null; then echo "deploy healthy"; exit 0; fi
+              sleep 6
+            done
+            echo "health check failed — re-run this workflow with a previous ref to roll back" >&2
+            docker compose -f docker-compose.prod.yml logs --tail=50 backend || true
+            exit 1

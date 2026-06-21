@@ -1,0 +1,222 @@
+# Production stack. Bring up with:
+#   cp .env.prod.example .env.prod   # then fill in real secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# All service configuration (DB creds, REDIS_URL, BACKEND_URL, secrets) lives in
+# .env.prod so there is a single source of truth and no manual fixes are needed.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-res-app: &res-app
+  limits:
+    cpus: "2.0"
+    memory: 1024M
+  reservations:
+    memory: 256M
+
+x-res-small: &res-small
+  limits:
+    cpus: "1.0"
+    memory: 512M
+  reservations:
+    memory: 128M
+
+services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infra/certbot/www:/var/www/certbot:ro
+      - ./infra/certbot/conf:/etc/letsencrypt:ro
+      - staticfiles:/app/staticfiles:ro
+      - media:/app/media:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    logging: *default-logging
+    networks: [edunet]
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - ./infra/certbot/www:/var/www/certbot
+      - ./infra/certbot/conf:/etc/letsencrypt
+    # Auto-renew loop; first issuance is still run manually once (see DEPLOYMENT.md).
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done'"
+    logging: *default-logging
+    networks: [edunet]
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      RUN_MIGRATIONS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources: *res-app
+    logging: *default-logging
+    networks: [edunet]
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      RUN_MIGRATIONS: "0"
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency", "${CELERY_CONCURRENCY:-4}"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources: *res-app
+    logging: *default-logging
+    networks: [edunet]
+
+  beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      RUN_MIGRATIONS: "0"
+    command: ["celery", "-A", "config", "beat", "-l", "info", "--pidfile="]
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    deploy:
+      resources: *res-small
+    logging: *default-logging
+    networks: [edunet]
+
+  web:
+    build:
+      context: ./frontend_w
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* are inlined at build time (see frontend_w/Dockerfile).
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/backend}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "3000"
+    deploy:
+      resources: *res-small
+    logging: *default-logging
+    networks: [edunet]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD come from .env.prod.
+    env_file:
+      - .env.prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-edu} -d $${POSTGRES_DB:-edu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources: *res-app
+    logging: *default-logging
+    networks: [edunet]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF persistence so the broker/queue survives restarts.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources: *res-small
+    logging: *default-logging
+    networks: [edunet]
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    # Daily pg_dump retained 7 days. Override retention via BACKUP_RETENTION_DAYS.
+    entrypoint: >
+      /bin/sh -c 'trap exit TERM;
+      while :; do
+        PGPASSWORD="$${POSTGRES_PASSWORD}" pg_dump -h db -U "$${POSTGRES_USER:-edu}" "$${POSTGRES_DB:-edu}"
+          | gzip > "/backups/edu-$$(date +%Y%m%d-%H%M%S).sql.gz" || echo "backup failed";
+        find /backups -name "edu-*.sql.gz" -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete;
+        sleep 24h & wait $${!};
+      done'
+    logging: *default-logging
+    networks: [edunet]
+
+volumes:
+  pgdata:
+  redisdata:
+  staticfiles:
+  media:
+
+networks:
+  edunet:
+    driver: bridge

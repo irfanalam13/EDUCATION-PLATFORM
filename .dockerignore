@@ -1,0 +1,40 @@
+# Backend image is built with context: . (repo root) and only COPYs backend/.
+# Keep the build context small and never ship secrets / local data / other apps.
+
+.git
+.github
+.vscode
+.idea
+
+# Other apps (not part of the backend image)
+frontend_w
+mobile
+infra
+backups
+redis-data
+
+# Secrets / env
+.env
+.env.*
+!backend/.env.example
+*.pem
+*.key
+
+# Python / Django local artifacts
+**/__pycache__/
+**/*.py[cod]
+.venv/
+venv/
+env/
+**/db.sqlite3
+**/db.sqlite3-journal
+backend/media/
+backend/staticfiles/
+backend/static_root/
+
+# Logs / docs / OS cruft
+*.log
+*.err.log
+*.md
+.DS_Store
+Thumbs.db
