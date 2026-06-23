@@ -1,0 +1,27 @@
+# Backend image build context is this directory (backend/). Keep it lean and
+# never ship secrets, local data, or build artifacts.
+
+# Secrets / env (keep the example so operators can see expected vars)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python / Django local artifacts
+**/__pycache__/
+**/*.py[cod]
+.venv/
+venv/
+env/
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static_root/
+
+# Logs / docs / OS cruft
+*.log
+*.err.log
+.DS_Store
+Thumbs.db

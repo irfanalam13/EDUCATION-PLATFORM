@@ -59,8 +59,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -89,8 +89,8 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -115,8 +115,8 @@ services:
 
   beat:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
       - .env.prod

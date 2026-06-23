@@ -103,8 +103,8 @@ secrets (`GEMINI_API_KEY`/`ANTHROPIC_API_KEY`, SMTP `EMAIL_*`, optional
 `GOOGLE_OAUTH_CLIENT_IDS`, `SENTRY_DSN`).
 
 **Option B — manual web service.** New + → Web Service → this repo →
-**Runtime: Docker**, Dockerfile `./backend/Dockerfile`, **context = repo root**.
-Then set the env vars below.
+**Runtime: Docker**, **Root Directory `backend`**, Dockerfile `Dockerfile` (the
+Dockerfile's `COPY` paths are relative to `backend/`). Then set the env vars below.
 
 | Var | Value / source |
 |---|---|

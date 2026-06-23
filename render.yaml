@@ -29,7 +29,7 @@ services:
     name: edu-platform-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: .                 # build context = repo root (Dockerfile COPYs backend/)
+    dockerContext: ./backend                 # build context = backend/ (Dockerfile COPYs are relative to it)
     plan: free
     healthCheckPath: /healthz/
     autoDeploy: true
@@ -52,7 +52,7 @@ services:
     name: edu-platform-worker
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
+    dockerContext: ./backend
     plan: starter
     dockerCommand: celery -A config worker -l info --concurrency 2
     envVars:
@@ -74,7 +74,7 @@ services:
     name: edu-platform-beat
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
+    dockerContext: ./backend
     plan: starter
     dockerCommand: celery -A config beat -l info
     envVars:

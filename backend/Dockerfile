@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
 # ---------- runtime: minimal image, non-root ----------
@@ -41,7 +41,9 @@ RUN addgroup --system app && adduser --system --ingroup app app
 COPY --from=builder /opt/venv /opt/venv
 
 # App code, owned by the runtime user. Only static/media need to be writable.
-COPY --chown=app:app backend/ /app/
+# Build context is the backend/ directory (see render.yaml / docker-compose), so
+# COPY paths are relative to backend/, not the repo root.
+COPY --chown=app:app . /app/
 RUN chmod +x /app/entrypoint.sh /app/scripts/*.sh 2>/dev/null || true \
     && mkdir -p /app/staticfiles /app/media \
     && chown app:app /app/staticfiles /app/media
