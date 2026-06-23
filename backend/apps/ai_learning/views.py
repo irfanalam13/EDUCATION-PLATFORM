@@ -14,11 +14,13 @@ from apps.ai_learning.services.mastery_calculator import (
     topic_mastery_rows, overall_mastery, band_distribution,
 )
 from apps.ai_learning.tasks import generate_all, mastery_cache_key
+from apps.billing.features import FEATURE_AI_RECOMMENDATIONS, FEATURE_STUDY_PLANS
+from apps.billing.permissions import requires_feature
 
 
 class RecommendationsView(APIView):
     """GET /api/ai/recommendations/ — current pending recommendations."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, requires_feature(FEATURE_AI_RECOMMENDATIONS)]
 
     def get(self, request):
         qs = (
@@ -33,7 +35,7 @@ class RecommendationsView(APIView):
 
 class WeakTopicsView(APIView):
     """GET /api/ai/weak-topics/ — materialized weak topics with scores."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, requires_feature(FEATURE_AI_RECOMMENDATIONS)]
 
     def get(self, request):
         qs = (
@@ -64,7 +66,7 @@ class MasteryView(APIView):
 
 class StudyPlanView(APIView):
     """GET /api/ai/study-plan/ — most recent plan with its timed sessions."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, requires_feature(FEATURE_STUDY_PLANS)]
 
     def get(self, request):
         plan = (
@@ -84,7 +86,7 @@ class GeneratePlanView(APIView):
     Runs the same pipeline the Celery task uses; synchronous so the client gets
     the plan immediately. `generate_for_user.delay()` is available for batch/cron.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, requires_feature(FEATURE_STUDY_PLANS)]
 
     def post(self, request):
         result = generate_all(request.user, build_plan=True)

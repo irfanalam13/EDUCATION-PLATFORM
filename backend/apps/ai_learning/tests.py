@@ -41,6 +41,12 @@ class AIEngineAPITest(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(username="learner", email="l@x.com", password="pw-1234aa")
+        # AI recommendations / study plans are Premium features (billing gating);
+        # grant the entitlement so the learner can reach these endpoints.
+        from apps.billing import services as billing_services
+        from apps.billing.models import Plan
+
+        billing_services.provision_features(user=cls.user, tier=Plan.Tier.PREMIUM)
         level = Level.objects.create(name="Grade 10")
         subject = Subject.objects.create(level=level, name="Math")
         chapter = Chapter.objects.create(subject=subject, title="Algebra", number=1)

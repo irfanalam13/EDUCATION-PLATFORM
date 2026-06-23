@@ -13,6 +13,9 @@ from .serializers import (
     ChatSessionListSerializer,
     ChatSessionSerializer,
 )
+from apps.billing.features import FEATURE_AI_TUTOR
+from apps.billing.permissions import requires_feature
+
 from .services import answer_learning_question, process_document
 
 
@@ -68,7 +71,7 @@ class AIChatSessionViewSet(viewsets.ModelViewSet):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, requires_feature(FEATURE_AI_TUTOR)])
 def chat(request):
     serializer = ChatRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

@@ -328,6 +328,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.analytics.tasks.snapshot_institutions",
         "schedule": 6 * 60 * 60.0,  # every 6 hours; persists a daily metrics row
     },
+    "process-subscription-renewals": {
+        "task": "apps.billing.tasks.process_subscription_renewals",
+        "schedule": 24 * 60 * 60.0,  # daily: roll gateway subs forward, expire lapsed
+    },
 }
 
 REST_FRAMEWORK = {

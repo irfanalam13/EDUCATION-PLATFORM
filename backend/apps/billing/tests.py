@@ -344,6 +344,43 @@ class RevenueAnalyticsTests(BillingTestBase):
         self.assertIn("mrr", resp.data)
 
 
+class RenewalTaskTests(BillingTestBase):
+    def test_renewals_roll_forward_or_expire(self):
+        from datetime import timedelta
+
+        from .tasks import process_subscription_renewals
+
+        # Provider-managed (Stripe) sub past period end -> renewed.
+        u1 = User.objects.create_user("ren1", "ren1@x.com", "x")
+        services.subscribe(u1, self.premium_yr, gateway=Gateway.MANUAL)
+        s1 = u1.subscriptions.first()
+        services.activate_subscription(s1)
+        Subscription.objects.filter(pk=s1.pk).update(
+            gateway=Gateway.STRIPE,
+            gateway_subscription_id="sub_x",
+            current_period_end=timezone.now() - timedelta(days=1),
+        )
+
+        # Manual one-off sub past period end -> lapses to Free.
+        u2 = User.objects.create_user("ren2", "ren2@x.com", "x")
+        services.subscribe(u2, self.premium_yr, gateway=Gateway.MANUAL)
+        s2 = u2.subscriptions.first()
+        services.activate_subscription(s2)
+        Subscription.objects.filter(pk=s2.pk).update(
+            current_period_end=timezone.now() - timedelta(days=1)
+        )
+
+        result = process_subscription_renewals()
+
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        self.assertEqual(result["renewed"], 1)
+        self.assertEqual(result["expired"], 1)
+        self.assertEqual(s1.status, SubscriptionStatus.ACTIVE)
+        self.assertGreater(s1.current_period_end, timezone.now())
+        self.assertEqual(s2.status, SubscriptionStatus.EXPIRED)
+
+
 class GatewaySignatureUnitTests(BillingTestBase):
     def test_stripe_replay_rejected(self):
         gw = get_gateway("STRIPE", {"webhook_secret": "webhook_secret"})
