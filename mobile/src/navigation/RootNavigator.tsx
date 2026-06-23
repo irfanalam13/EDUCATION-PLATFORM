@@ -12,6 +12,7 @@ import { SignupScreen } from "@/screens/auth/SignupScreen";
 import { AiScreen } from "@/screens/main/AiScreen";
 import { AnalyticsScreen } from "@/screens/main/AnalyticsScreen";
 import { AssistantScreen } from "@/screens/main/AssistantScreen";
+import { BillingScreen } from "@/screens/main/BillingScreen";
 import { DashboardScreen } from "@/screens/main/DashboardScreen";
 import { LearnScreen } from "@/screens/main/LearnScreen";
 import { NotesScreen } from "@/screens/main/NotesScreen";
@@ -23,7 +24,8 @@ const tabs: Array<{ route: AppRoute; label: string; icon: keyof typeof Ionicons.
   { route: "notes", label: "Notes", icon: "create-outline" },
   { route: "quiz", label: "Quiz", icon: "checkmark-circle-outline" },
   { route: "ai", label: "Coach", icon: "bulb-outline" },
-  { route: "assistant", label: "Chat", icon: "sparkles-outline" }
+  { route: "assistant", label: "Chat", icon: "sparkles-outline" },
+  { route: "billing", label: "Plans", icon: "card-outline" }
 ];
 
 export function RootNavigator({ bootstrapping }: { bootstrapping: boolean }) {
@@ -62,6 +64,7 @@ export function RootNavigator({ bootstrapping }: { bootstrapping: boolean }) {
         {appRoute === "quiz" ? <QuizScreen /> : null}
         {appRoute === "ai" ? <AiScreen /> : null}
         {appRoute === "assistant" ? <AssistantScreen /> : null}
+        {appRoute === "billing" ? <BillingScreen /> : null}
         {appRoute === "analytics" ? <AnalyticsScreen /> : null}
       </View>
 

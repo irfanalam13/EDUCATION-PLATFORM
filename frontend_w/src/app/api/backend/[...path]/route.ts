@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { ACCESS_COOKIE, backendBaseUrl, REFRESH_COOKIE } from "@/lib/auth";
+import { ACCESS_COOKIE, AUTH_COOKIE_OPTIONS, backendBaseUrl, REFRESH_COOKIE } from "@/lib/auth";
 
 
 async function refreshAccessToken() {
@@ -51,9 +51,9 @@ async function proxy(request: NextRequest, path: string[]) {
   if (response.status === 401) {
     const refreshed = await refreshAccessToken();
     if (refreshed?.access) {
-      cookieStore.set(ACCESS_COOKIE, refreshed.access, { httpOnly: true, sameSite: "lax", path: "/" });
+      cookieStore.set(ACCESS_COOKIE, refreshed.access, AUTH_COOKIE_OPTIONS);
       if (refreshed.refresh) {
-        cookieStore.set(REFRESH_COOKIE, refreshed.refresh, { httpOnly: true, sameSite: "lax", path: "/" });
+        cookieStore.set(REFRESH_COOKIE, refreshed.refresh, AUTH_COOKIE_OPTIONS);
       }
       response = await doFetch(refreshed.access);
     }

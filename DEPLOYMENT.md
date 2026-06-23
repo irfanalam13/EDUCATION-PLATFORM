@@ -86,7 +86,91 @@ at **`.env.prod.example`** — copy it to `.env.prod` and fill in the `<CHANGE M
 
 ---
 
-## 3. Deploy (Docker Compose)
+## 3. Deploy on Render (backend) + Vercel (web)
+
+This is the managed-PaaS path (no VPS/nginx). The web app talks to Django through
+its own same-origin **BFF proxy** (`/api/backend/*`, `/api/auth/*`), so the
+browser never makes a cross-origin call and **CORS is a non-issue for the web app**.
+
+### 3.1 Backend → Render
+
+**Option A — Blueprint (recommended).** The repo ships a `render.yaml` defining the
+web service (Docker), a Postgres database, a Redis (Key Value) instance, and
+optional Celery `worker` + `beat`. In Render: **New + → Blueprint → pick this repo**.
+Render reads `render.yaml` and wires `DATABASE_URL`, `REDIS_URL`, and a generated
+`SECRET_KEY` automatically. After the first deploy, fill in the `sync: false`
+secrets (`GEMINI_API_KEY`/`ANTHROPIC_API_KEY`, SMTP `EMAIL_*`, optional
+`GOOGLE_OAUTH_CLIENT_IDS`, `SENTRY_DSN`).
+
+**Option B — manual web service.** New + → Web Service → this repo →
+**Runtime: Docker**, Dockerfile `./backend/Dockerfile`, **context = repo root**.
+Then set the env vars below.
+
+| Var | Value / source |
+|---|---|
+| `DJANGO_SETTINGS_MODULE` | `config.settings.prod` |
+| `DEBUG` | `False` |
+| `SECRET_KEY` | generate a strong value (Render can auto-generate) |
+| `DATABASE_URL` | the managed Postgres connection string (auto-wired by Blueprint) |
+| `REDIS_URL` | the Key Value connection string (auto-wired by Blueprint) |
+| `USE_POSTGRES` `USE_REDIS` `USE_CELERY` | `True` |
+| `ALLOWED_HOSTS` | **not required** — `RENDER_EXTERNAL_HOSTNAME` is trusted automatically; add only for custom domains |
+| `CORS_ALLOWED_ORIGINS` / `CSRF_TRUSTED_ORIGINS` | your Vercel URL, e.g. `https://education-platform-psi.vercel.app` |
+| `AI_CHAT_PROVIDER` + `GEMINI_API_KEY` (and/or `ANTHROPIC_API_KEY`) | AI chat |
+| `EMAIL_BACKEND` `EMAIL_HOST` `EMAIL_HOST_USER` `EMAIL_HOST_PASSWORD` `DEFAULT_FROM_EMAIL` | SMTP for OTP / reset |
+
+- **Port**: the Dockerfile binds gunicorn to `$PORT` (Render injects it); no config needed.
+- **Migrations & static**: the entrypoint runs `migrate` + `collectstatic` on boot
+  for the web role (`RUN_MIGRATIONS=1`); worker/beat set `0` so they don't race.
+- **Health check**: `GET /healthz/` → `{"status":"ok"}` (set as the Render health path).
+- **First admin**: Render dashboard → service → **Shell** → `python manage.py createsuperuser`.
+
+> **Free-tier note:** Render has no free background workers. For a free deploy,
+> delete the `worker`/`beat` services from `render.yaml` (or skip them in Option B)
+> and set `USE_CELERY=False`. The quiz→XP→progress→leaderboard loop still runs
+> (it fires inline via `transaction.on_commit`); only the *scheduled* jobs
+> (notification dispatch, analytics snapshots) are skipped until you add a worker.
+
+### 3.2 Web → Vercel
+
+New Project → this repo → **Root Directory: `frontend_w`** (Vercel auto-detects
+Next.js). Set env vars:
+
+| Var | Value |
+|---|---|
+| `BACKEND_URL` | your Render API URL, e.g. `https://education-platform-f96b.onrender.com` |
+| `NODE_ENV` | `production` (Vercel sets this; it flips the JWT cookies to `Secure`) |
+
+The browser-side `NEXT_PUBLIC_API_BASE_URL` defaults to the same-origin proxy
+`/api/backend`, so you do **not** need to set it. Only set it if you want the
+browser to bypass the proxy and hit Django directly (then CORS must list the
+Vercel origin).
+
+### 3.3 Mobile → Expo / EAS
+
+`eas.json`'s `preview` and `production` profiles already point
+`EXPO_PUBLIC_API_BASE_URL` at the Render backend (HTTPS). Native React Native has
+no `Origin` header, so CORS never applies. Build/submit:
+
+```bash
+cd mobile && npm install
+npx eas build --profile production --platform all
+npx eas submit --profile production --platform all
+```
+
+### 3.4 Smoke test (Render + Vercel)
+
+```bash
+curl -f https://<your-app>.onrender.com/healthz/                  # → {"status":"ok"}
+curl -sf https://<your-app>.onrender.com/api/academics/levels/    # public catalogue (200)
+curl -si https://<your-app>.onrender.com/api/progress/dashboard/  # → 401 (auth required)
+```
+Then on the Vercel URL: register → verify email (OTP) → login → dashboard → take a
+quiz → confirm XP/leaderboard update → open **AI Coach** → generate a plan.
+
+---
+
+## 4. Deploy (Docker Compose / VPS)
 
 `docker-compose.prod.yml` defines: `nginx`, `backend`, `worker`, `beat`, `web`,
 `db`, `redis`, `certbot`, `backup`. The backend image runs as non-root and its
@@ -138,7 +222,7 @@ npx eas submit --profile production --platform all
 
 ---
 
-## 4. CI/CD
+## 5. CI/CD
 
 `.github/workflows/ci.yml` runs on push/PR to `main`:
 - **backend** — `check`, migration-drift check, `test apps`
@@ -152,7 +236,7 @@ with a `/healthz/` gate. Needs secrets `SSH_HOST`, `SSH_USER`, `SSH_KEY`,
 
 ---
 
-## 5. Post-deploy smoke test
+## 6. Post-deploy smoke test (Docker / VPS)
 
 ```bash
 curl -f https://edu.example.com/healthz/                 # → {"status":"ok"}
@@ -165,7 +249,7 @@ plan → see recommendations + study plan.
 
 ---
 
-## 6. Launch checklist
+## 7. Launch checklist
 
 **Security**
 - [ ] Secrets rotated + purged from git history (Blocker #1)
@@ -189,7 +273,7 @@ plan → see recommendations + study plan.
 
 ---
 
-## 7. Phase summary (what shipped)
+## 8. Phase summary (what shipped)
 
 | Phase | Outcome |
 |---|---|
@@ -205,7 +289,7 @@ plan → see recommendations + study plan.
 
 ---
 
-## 8. Rollback
+## 9. Rollback
 
 - App rollback: redeploy the previous image tag (`docker compose ... up -d`).
 - DB: restore the latest `./backups/edu-*.sql.gz` via `gunzip | psql`.

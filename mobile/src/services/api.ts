@@ -1,5 +1,10 @@
 import { getAccessToken, getRefreshToken, setTokens, updateAccessToken } from "./tokenStore";
 
+// Backend base URL. The mobile app talks to Django DIRECTLY (no same-origin proxy
+// like the web app has). The value comes from the environment:
+//   • local dev      → mobile/.env.local      (EXPO_PUBLIC_API_BASE_URL)
+//   • preview / prod  → eas.json build profiles (EXPO_PUBLIC_API_BASE_URL)
+// The localhost fallback only applies if no env var is set at all.
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, "");
 

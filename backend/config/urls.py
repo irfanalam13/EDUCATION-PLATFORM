@@ -59,6 +59,7 @@ urlpatterns = [
     path("api/content/", include("apps.content.urls")),
     path("api/gamification/", include("apps.gamification.urls")),
     path("api/assessment/", include("apps.assessment.urls")),
+    path("api/billing/", include("apps.billing.urls")),
     path("api/progress/", include("apps.progress.urls")),
     path("api/institutions/", include("apps.institutions.urls")),
     path("api/notifications/", include("apps.notifications.urls")),

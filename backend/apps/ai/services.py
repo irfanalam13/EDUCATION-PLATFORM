@@ -261,36 +261,74 @@ AI_SYSTEM_PROMPT = (
 )
 
 
+def _generate_with_gemini(user_content: str, max_tokens: int) -> str | None:
+    """Generate an answer with Google Gemini. Returns None if unavailable/failed."""
+    api_key = getattr(settings, "GEMINI_API_KEY", "")
+    if not api_key:
+        return None
+    model = getattr(settings, "GEMINI_CHAT_MODEL", "gemini-2.5-flash")
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model,
+            contents=user_content,
+            config=types.GenerateContentConfig(
+                system_instruction=AI_SYSTEM_PROMPT,
+                max_output_tokens=max_tokens,
+            ),
+        )
+        return (response.text or "").strip() or None
+    except Exception:
+        return None
+
+
+def _generate_with_claude(user_content: str, max_tokens: int) -> str | None:
+    """Generate an answer with Anthropic Claude. Returns None if unavailable/failed."""
+    api_key = getattr(settings, "ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return None
+    model = getattr(settings, "AI_CHAT_MODEL", "claude-opus-4-8")
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=AI_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_content}],
+        )
+        answer = "".join(
+            block.text for block in response.content if getattr(block, "type", None) == "text"
+        ).strip()
+        return answer or None
+    except Exception:
+        return None
+
+
 def generate_answer(*, question: str, context_chunks: list[RetrievedChunk]) -> tuple[str, str]:
     context = "\n\n".join(
         f"[{index + 1}] {item.chunk.title}\n{item.chunk.text}" for index, item in enumerate(context_chunks)
     )
-    api_key = getattr(settings, "ANTHROPIC_API_KEY", "")
-    model = getattr(settings, "AI_CHAT_MODEL", "claude-opus-4-8")
     max_tokens = int(getattr(settings, "AI_CHAT_MAX_TOKENS", 2000))
+    user_content = (
+        f"Retrieved context:\n{context or 'No retrieved context available.'}\n\n"
+        f"Question: {question}"
+    )
 
-    if api_key:
-        try:
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=api_key)
-            user_content = (
-                f"Retrieved context:\n{context or 'No retrieved context available.'}\n\n"
-                f"Question: {question}"
-            )
-            response = client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                system=AI_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_content}],
-            )
-            answer = "".join(
-                block.text for block in response.content if getattr(block, "type", None) == "text"
-            ).strip()
-            if answer:
-                return answer, "rag_claude" if context_chunks else "general_claude"
-        except Exception:
-            pass
+    # Generate via the configured primary provider, falling back to the other.
+    # Default ships as Gemini (see AI_CHAT_PROVIDER) so chat works from general
+    # knowledge even with no RAG data uploaded.
+    primary = getattr(settings, "AI_CHAT_PROVIDER", "gemini").lower()
+    generators = {"gemini": _generate_with_gemini, "claude": _generate_with_claude}
+    order = [primary] + [name for name in generators if name != primary]
+    for name in order:
+        answer = generators[name](user_content, max_tokens)
+        if answer:
+            return answer, (f"rag_{name}" if context_chunks else f"general_{name}")
 
     if context_chunks:
         bullets = "\n".join(f"- {item.chunk.text[:350]}" for item in context_chunks[:3])

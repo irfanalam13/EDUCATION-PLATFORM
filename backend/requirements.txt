@@ -30,7 +30,8 @@ boto3==1.43.34
 Pillow==12.2.0
 
 # AI / RAG
-anthropic==0.111.0          # Claude chat (RAG + general answers)
+google-genai==1.51.0        # Gemini chat (primary answer provider)
+anthropic==0.111.0          # Claude chat (RAG + general answers; fallback)
 pymupdf==1.27.2.3           # PDF text extraction
 # Embeddings are pluggable (AI_EMBEDDING_PROVIDER). Install the one you use:
 voyageai==0.4.1             # optional: Voyage embeddings (Anthropic-recommended)
@@ -38,6 +39,9 @@ openai==2.43.0              # optional: OpenAI embeddings
 
 # Auth
 google-auth==2.55.0         # Google OAuth ID-token verification
+
+# Payments (apps.billing) — gateway REST calls (Stripe / Khalti / eSewa)
+httpx==0.28.1
 
 # Reporting (institution analytics PDF + Excel exports)
 reportlab==4.4.5

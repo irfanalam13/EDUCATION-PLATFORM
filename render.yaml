@@ -1,0 +1,154 @@
+# Render Blueprint — backend API + (optional) Celery worker/beat + Postgres + Redis.
+#
+# Deploy: push this to your repo, then in the Render dashboard:
+#   New + → Blueprint → pick this repo. Render reads render.yaml and provisions
+#   everything below. Fill in the `sync: false` secrets (API keys, SMTP) per
+#   service after the first deploy.
+#
+# The web service alone is enough to boot the API. The worker + beat are only
+# needed for background jobs (scheduled notifications, analytics snapshots) and
+# require a PAID instance type (Render has no free background workers). For a
+# free-tier deploy, delete the worker/beat services and set USE_CELERY=False in
+# the env group — quiz→XP→progress still works (it runs inline on_commit).
+
+databases:
+  - name: edu-platform-db
+    databaseName: edu_platform
+    user: edu_platform
+    plan: free            # free Postgres expires after 30 days — upgrade for prod
+
+services:
+  # ---- Redis (cache + Celery broker) ---------------------------------------
+  - type: keyvalue
+    name: edu-platform-redis
+    plan: free
+    ipAllowList: []       # internal-only; no public access
+
+  # ---- Django / DRF API (gunicorn) -----------------------------------------
+  - type: web
+    name: edu-platform-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .                 # build context = repo root (Dockerfile COPYs backend/)
+    plan: free
+    healthCheckPath: /healthz/
+    autoDeploy: true
+    envVars:
+      - fromGroup: edu-backend
+      - key: RUN_MIGRATIONS          # web role runs migrate + collectstatic on boot
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edu-platform-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: edu-platform-redis
+          property: connectionString
+
+  # ---- Celery worker (PAID — delete for free-tier deploys) -----------------
+  - type: worker
+    name: edu-platform-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    dockerCommand: celery -A config worker -l info --concurrency 2
+    envVars:
+      - fromGroup: edu-backend
+      - key: RUN_MIGRATIONS          # workers must NOT race the web role on migrate
+        value: "0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edu-platform-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: edu-platform-redis
+          property: connectionString
+
+  # ---- Celery beat scheduler (PAID — delete for free-tier deploys) ---------
+  - type: worker
+    name: edu-platform-beat
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    dockerCommand: celery -A config beat -l info
+    envVars:
+      - fromGroup: edu-backend
+      - key: RUN_MIGRATIONS
+        value: "0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edu-platform-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: edu-platform-redis
+          property: connectionString
+
+# Shared env across web/worker/beat. SECRET_KEY is generated once and shared so
+# JWTs signed by the web role validate in the workers. ALLOWED_HOSTS is satisfied
+# automatically by Render's injected RENDER_EXTERNAL_HOSTNAME (see settings/base.py).
+envVarGroups:
+  - name: edu-backend
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true          # one strong key, shared by all three services
+      - key: USE_POSTGRES
+        value: "True"
+      - key: USE_REDIS
+        value: "True"
+      - key: USE_CELERY
+        value: "True"                 # set False (and delete worker/beat) for free tier
+      # Web origin(s) that may call the API. The Next.js BFF proxy is same-origin
+      # so CORS is not strictly needed for the web app, but set it for safety and
+      # for any direct browser/Expo-web calls. Update to your real Vercel domain.
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://education-platform-psi.vercel.app
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://education-platform-psi.vercel.app
+      # ---- AI chat (primary Gemini, Claude fallback) — set the keys you use ----
+      - key: AI_CHAT_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # ---- Email (OTP / verification / password reset) ----
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      # ---- Billing / payments (apps.billing) — all optional; unset => MANUAL ----
+      - key: BILLING_DEFAULT_CURRENCY
+        value: NPR
+      - key: MANUAL_WEBHOOK_TOKEN
+        generateValue: true
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: KHALTI_SECRET_KEY
+        sync: false
+      - key: ESEWA_SECRET_KEY
+        sync: false
+      # ---- Optional ----
+      - key: GOOGLE_OAUTH_CLIENT_IDS
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

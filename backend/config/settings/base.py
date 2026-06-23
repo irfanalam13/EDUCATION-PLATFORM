@@ -46,12 +46,21 @@ DEV_MODE = env_bool("DEV_MODE", DEBUG)
 # both). The insecure fallback is only ever used in DEBUG; prod.py hard-fails if
 # a real key is missing or left at the insecure default.
 SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("DJANGO_SECRET_KEY") or "django-insecure-dev-only-change-me"
-# ---- AI / RAG (Claude) ----
+# ---- AI / RAG (chat answer generation) ----
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 AI_CHAT_MODEL = os.getenv("AI_CHAT_MODEL", "claude-opus-4-8")
 AI_CHAT_MAX_TOKENS = int(os.getenv("AI_CHAT_MAX_TOKENS", "2000"))
 AI_RAG_TOP_K = int(os.getenv("AI_RAG_TOP_K", "5"))
 AI_MAX_UPLOAD_MB = int(os.getenv("AI_MAX_UPLOAD_MB", "20"))
+
+# Google Gemini chat provider. The platform ships without preloaded RAG data, so
+# answers are generated from the model's general knowledge (RAG context is still
+# used when a user uploads PDFs/notes). AI_CHAT_PROVIDER picks the primary LLM
+# ("gemini" | "claude"); the other is used as fallback if the primary fails.
+# Defaults to Gemini whenever a GEMINI_API_KEY is configured.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash")
+AI_CHAT_PROVIDER = os.getenv("AI_CHAT_PROVIDER", "gemini" if GEMINI_API_KEY else "claude").lower()
 
 # Embeddings are retrieval-only (Anthropic has no embeddings endpoint).
 # Provider: "local" (hash fallback, no key) | "voyage" | "openai".
@@ -64,12 +73,38 @@ ACCOUNT_EMAIL_VERIFICATION_REQUIRED = env_bool("ACCOUNT_EMAIL_VERIFICATION_REQUI
 EMAIL_OTP_EXPIRY_MINUTES = int(os.getenv("EMAIL_OTP_EXPIRY_MINUTES", "10"))
 GOOGLE_OAUTH_CLIENT_IDS = env_list("GOOGLE_OAUTH_CLIENT_IDS", env_list("GOOGLE_OAUTH_CLIENT_ID", []))
 
+# ---- Billing / payments (apps.billing) ----
+# Nepal-focused: prices default to NPR; Khalti/eSewa are the local gateways and
+# Stripe covers international cards. With no keys configured the MANUAL gateway
+# (offline confirmation via MANUAL_WEBHOOK_TOKEN) keeps the flow working.
+BILLING_DEFAULT_CURRENCY = os.getenv("BILLING_DEFAULT_CURRENCY", "NPR")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "")
+KHALTI_SANDBOX = env_bool("KHALTI_SANDBOX", True)
+ESEWA_SECRET_KEY = os.getenv("ESEWA_SECRET_KEY", "")
+ESEWA_PRODUCT_CODE = os.getenv("ESEWA_PRODUCT_CODE", "EPAYTEST")
+ESEWA_SANDBOX = env_bool("ESEWA_SANDBOX", True)
+MANUAL_WEBHOOK_TOKEN = os.getenv("MANUAL_WEBHOOK_TOKEN", "")
+
 # In prod, operators must set ALLOWED_HOSTS (enforced in prod.py). We always keep
-# localhost/127.0.0.1 so in-container health checks work regardless.
+# localhost/127.0.0.1 so in-container health checks work regardless. The deployed
+# origins (Render host, Vercel frontend) are supplied via env on the platform —
+# see backend/.env.example for the variable names.
+# Render injects RENDER_EXTERNAL_HOSTNAME for every service; auto-trusting it
+# means a Render deploy works without hand-copying the *.onrender.com host into
+# ALLOWED_HOSTS. Operators can still add custom domains via the ALLOWED_HOSTS env.
+_RENDER_HOST = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 ALLOWED_HOSTS = (
     ["*"]
     if DEBUG
-    else list(dict.fromkeys(env_list("ALLOWED_HOSTS", []) + ["localhost", "127.0.0.1"]))
+    else list(
+        dict.fromkeys(
+            env_list("ALLOWED_HOSTS", [])
+            + ([_RENDER_HOST] if _RENDER_HOST else [])
+            + ["localhost", "127.0.0.1"]
+        )
+    )
 )
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
@@ -80,7 +115,6 @@ CSRF_TRUSTED_ORIGINS = env_list(
         "http://127.0.0.1:8000",
     ],
 )
-# Look for this line in your base.py file (Around line 53) and update it:
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
     [
@@ -146,6 +180,7 @@ INSTALLED_APPS = [
     "apps.ai_learning",
     "apps.analytics",
     "apps.assessment",
+    "apps.billing",
     "apps.content",
     "apps.gamification",
     "apps.institutions",
@@ -165,6 +200,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Wires request.entitlements (feature gating) — must run after auth so the
+    # user is resolved. Cheap: no DB work until an entitlement is queried.
+    "apps.billing.middleware.FeatureGateMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -193,9 +231,37 @@ AUTH_USER_MODEL = "accounts.User"
 
 # Database choice is decoupled from DEV_MODE: prod always uses Postgres, but dev
 # can opt into Postgres (USE_POSTGRES=True in .env) while keeping DEBUG/DEV_MODE on.
-USE_POSTGRES = env_bool("USE_POSTGRES", not DEV_MODE)
+# Managed platforms (Render, Railway, Heroku, Fly) expose a single DATABASE_URL
+# connection string instead of discrete DB_* vars — if it is set we parse it and
+# use Postgres regardless of USE_POSTGRES, so the operator only has to wire one var.
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
-if USE_POSTGRES:
+
+def _database_from_url(url: str) -> dict:
+    """Parse a postgres://user:pass@host:port/name URL into a Django DB config."""
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(url)
+    # Render's managed Postgres requires SSL. Allow opt-out via DB_SSLMODE for
+    # providers/local proxies that don't (e.g. DB_SSLMODE=disable).
+    sslmode = os.getenv("DB_SSLMODE", "require")
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parsed.path.lstrip("/")),
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "OPTIONS": {"sslmode": sslmode} if sslmode else {},
+    }
+
+
+USE_POSTGRES = env_bool("USE_POSTGRES", not DEV_MODE) or bool(DATABASE_URL)
+
+if DATABASE_URL:
+    DATABASES = {"default": _database_from_url(DATABASE_URL)}
+elif USE_POSTGRES:
     DATABASES = {
         "default": {
             "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),

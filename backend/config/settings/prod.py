@@ -17,8 +17,13 @@ if SECRET_KEY.startswith("django-insecure"):  # noqa: F405
     )
 
 # ALLOWED_HOSTS must be provided via env in prod (base appends localhost for
-# in-container health checks, so we validate the env var itself).
-if not (os.environ.get("ALLOWED_HOSTS") or "").strip():
+# in-container health checks, so we validate the env var itself). On Render the
+# platform-injected RENDER_EXTERNAL_HOSTNAME satisfies this, so no manual host
+# config is required there.
+if not (
+    (os.environ.get("ALLOWED_HOSTS") or "").strip()
+    or (os.environ.get("RENDER_EXTERNAL_HOSTNAME") or "").strip()
+):
     raise ImproperlyConfigured("ALLOWED_HOSTS must be set explicitly in production.")
 
 # --- HTTPS / transport security ------------------------------------------

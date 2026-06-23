@@ -50,7 +50,9 @@ USER app
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=5 \
-  CMD curl -fsS http://127.0.0.1:8000/healthz/ || exit 1
+  CMD curl -fsS http://127.0.0.1:${PORT:-8000}/healthz/ || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --timeout 120 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]
+# Bind to $PORT when the platform injects one (Render/Railway/Heroku route to it);
+# fall back to 8000 for docker-compose/nginx where the port is fixed.
+CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${GUNICORN_WORKERS:-3} --timeout 120 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]

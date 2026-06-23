@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { ACCESS_COOKIE, backendBaseUrl, REFRESH_COOKIE } from "@/lib/auth";
+import { ACCESS_COOKIE, AUTH_COOKIE_OPTIONS, backendBaseUrl, REFRESH_COOKIE } from "@/lib/auth";
 
 
 export async function POST(request: Request) {
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ACCESS_COOKIE, payload.access, { httpOnly: true, sameSite: "lax", path: "/" });
-  cookieStore.set(REFRESH_COOKIE, payload.refresh, { httpOnly: true, sameSite: "lax", path: "/" });
+  cookieStore.set(ACCESS_COOKIE, payload.access, AUTH_COOKIE_OPTIONS);
+  cookieStore.set(REFRESH_COOKIE, payload.refresh, AUTH_COOKIE_OPTIONS);
 
   return NextResponse.json({ ok: true });
 }
