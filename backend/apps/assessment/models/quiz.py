@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from .bank import MCQQuestion, Difficulty
+from .bank import MCQQuestion
 
 
 class QuizMode(models.TextChoices):

@@ -115,7 +115,7 @@ class ReportGenerateView(APIView):
 
         institution_id = data["institution_id"]
         fmt = data["file_format"]
-        title = f"Institution analytics report"
+        title = "Institution analytics report"
 
         report = AnalyticsReport(
             institution_id=institution_id,

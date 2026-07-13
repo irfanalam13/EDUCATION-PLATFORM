@@ -1,4 +1,3 @@
-from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Count, Avg
 
@@ -7,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from .models import TopicProgress, DailyActivity, StudyStreak, WeakTopicCache, UserGoal, ProgressSnapshot
+from .models import TopicProgress, DailyActivity, StudyStreak, UserGoal
 from .serializers import (
     TopicProgressSerializer, DailyActivitySerializer, StudyStreakSerializer,
     WeakTopicSerializer, DueTopicSerializer, UserGoalSerializer, SnapshotSerializer,

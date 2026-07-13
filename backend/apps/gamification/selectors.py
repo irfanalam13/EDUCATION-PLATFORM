@@ -1,7 +1,6 @@
 # apps/gamification/selectors.py
 from __future__ import annotations
 
-from django.utils import timezone
 from apps.gamification.models import LeaderboardEntry
 
 

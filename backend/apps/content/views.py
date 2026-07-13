@@ -7,7 +7,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly,
     IsAuthenticated,
-    IsAdminUser,
 )
 from rest_framework.response import Response
 

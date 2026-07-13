@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db.models import Avg, Sum, Count
 
-from .models import TopicProgress, WeakTopicCache, DailyActivity, ProgressSnapshot
+from .models import TopicProgress, WeakTopicCache, ProgressSnapshot
 
 @shared_task
 def recompute_weak_topics_for_user(user_id: int, top_n: int = 20):

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 
 

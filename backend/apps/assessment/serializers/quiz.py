@@ -1,12 +1,7 @@
 from rest_framework import serializers
 
-from apps.assessment.models import QuizSession, QuizSessionQuestion, QuizResult, MCQQuestion, MCQOption
-from apps.assessment.models.quiz import QuizMode, SessionState
-from apps.assessment.selectors import select_mcq_questions_for_session
-from apps.assessment.services import (
-    apply_answer_to_session_question,
-    finish_session_and_compute_result,
-)
+from apps.assessment.models import QuizSession
+from apps.assessment.models.quiz import QuizMode
 
 
 class QuizStartSerializer(serializers.Serializer):

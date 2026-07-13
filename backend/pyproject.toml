@@ -1,0 +1,39 @@
+# Backend tooling config (Ruff lint/format + coverage). Runtime deps stay in
+# requirements.txt; dev/CI-only tools live in requirements-dev.txt.
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+# Generated code and local artifacts are never linted.
+extend-exclude = ["**/migrations/**", ".venv", "staticfiles", "media", "db.sqlite3"]
+
+[tool.ruff.lint]
+# Conservative on purpose so the gate is GREEN today. Tighten over time by adding
+# rule families as the codebase is cleaned, e.g.:
+#   "I"  isort (import ordering)   "UP" pyupgrade      "B"  flake8-bugbear
+#   "DJ" flake8-django             "S"  flake8-bandit   "C4" comprehensions
+# Current set = Ruff defaults (pyflakes + a slice of pycodestyle). Note E501
+# (line-too-long) is intentionally NOT enforced — the formatter owns line length.
+select = ["E4", "E7", "E9", "F"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Settings use intentional star-imports across the base/dev/prod split.
+"**/settings/*.py" = ["F403", "F405"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---- Coverage (measured in the backend-test CI job) ----
+[tool.coverage.run]
+source = ["apps"]
+branch = true
+omit = ["*/migrations/*", "*/tests*.py", "*/tests/*", "*/apps.py", "manage.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# Do not fail the build on coverage yet — surface the number first, ratchet later.
+fail_under = 0
+exclude_lines = ["pragma: no cover", "raise NotImplementedError", "if TYPE_CHECKING:"]

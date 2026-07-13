@@ -6,13 +6,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from django.core.cache import cache
-from django.utils import timezone
 
 from apps.gamification.models import (
     UserGamificationProfile, XpTransaction, Badge,
     Quest, UserQuestProgress
 )
-from apps.gamification.permissions import IsOwner
 from apps.gamification.serializers import (
     GamificationProfileSerializer, XpTransactionSerializer,
     BadgeSerializer, LeaderboardSerializer,

@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import (
-    InstitutionMember, BatchStaff, Enrollment, ParentLink, Batch
+    InstitutionMember, BatchStaff, Enrollment, ParentLink
 )
 
 def _is_inst_admin(user, institution_id: int) -> bool:

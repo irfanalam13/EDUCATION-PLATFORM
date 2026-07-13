@@ -1,6 +1,5 @@
 # apps/gamification/rules.py
 from __future__ import annotations
-from dataclasses import dataclass
 from decimal import Decimal
 
 # XP sources used across your system (academics, mcq, assessment, etc.)

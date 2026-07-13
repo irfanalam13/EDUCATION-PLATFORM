@@ -13,7 +13,7 @@ the dashboards call these functions directly.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone

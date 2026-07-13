@@ -20,7 +20,6 @@ from apps.assessment.models import (
 from apps.assessment.models.quiz import SessionState
 from apps.assessment.permissions import IsTeacherOrAdmin, IsOwnerOfSession
 from apps.assessment.serializers.bank import (
-    MCQQuestionSerializer,
     MCQQuestionPlaySerializer,
     MCQQuestionCreateSerializer,
     PracticeQuestionSerializer,

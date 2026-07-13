@@ -14,9 +14,8 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
-from . import features as feat
 from .features import features_for_tier
-from .gateways import WebhookVerificationError, get_gateway
+from .gateways import get_gateway
 from .models import (
     BillingInterval,
     Coupon,

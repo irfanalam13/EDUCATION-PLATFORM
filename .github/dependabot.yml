@@ -1,0 +1,62 @@
+# Automated dependency updates. Grouped so you get a few tidy PRs per week
+# instead of dozens. Security updates are always raised immediately regardless
+# of the schedule below.
+version: 2
+updates:
+  # ---- Backend (pip) ----
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+    labels: ["dependencies", "backend"]
+
+  # ---- Web (npm) ----
+  - package-ecosystem: npm
+    directory: /frontend_w
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-patch:
+        update-types: [minor, patch]
+    labels: ["dependencies", "web"]
+
+  # ---- Mobile (npm) ----
+  - package-ecosystem: npm
+    directory: /mobile
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      mobile-minor-patch:
+        update-types: [minor, patch]
+    labels: ["dependencies", "mobile"]
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "ci"]
+
+  # ---- Dockerfiles ----
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "docker"]
+  - package-ecosystem: docker
+    directory: /frontend_w
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "docker"]

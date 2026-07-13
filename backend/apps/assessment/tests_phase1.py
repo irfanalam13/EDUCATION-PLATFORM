@@ -15,7 +15,6 @@ from apps.academics.models import Level, Subject, Chapter, Topic
 from apps.assessment.models import (
     QuizSession,
     QuizSessionQuestion,
-    QuizResult,
 )
 from apps.assessment.models.bank import MCQQuestion, MCQOption
 from apps.assessment.models.quiz import QuizMode, SessionState

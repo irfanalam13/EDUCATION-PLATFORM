@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from .models import TopicProgress, DailyActivity, WeakTopicCache, StudyStreak, ProgressSnapshot
+from .models import TopicProgress, DailyActivity, WeakTopicCache, ProgressSnapshot
 
 def get_due_topics(user, limit=20):
     now = timezone.now()
