@@ -30,7 +30,7 @@ boto3==1.43.34
 Pillow==12.2.0
 
 # AI / RAG
-google-genai==1.51.0        # Gemini chat (primary answer provider)
+google-genai==2.11.0        # Gemini chat (primary answer provider)
 anthropic==0.111.0          # Claude chat (RAG + general answers; fallback)
 pymupdf==1.27.2.3           # PDF text extraction
 # Embeddings are pluggable (AI_EMBEDDING_PROVIDER). Install the one you use:
