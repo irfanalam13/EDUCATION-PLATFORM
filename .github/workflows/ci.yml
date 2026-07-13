@@ -97,7 +97,9 @@ jobs:
       - name: Build backend image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          # Context is backend/ — the Dockerfile's COPY paths are relative to it
+          # (matches render.yaml dockerContext and docker-compose.prod.yml).
+          context: ./backend
           file: backend/Dockerfile
           push: false
           load: true

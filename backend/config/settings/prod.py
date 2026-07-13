@@ -29,6 +29,11 @@ if not (
 # --- HTTPS / transport security ------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)  # noqa: F405
+# Never redirect the liveness probe. Render/Docker health checks hit the service
+# internally over plain HTTP (no X-Forwarded-Proto), so with SSL redirect on the
+# probe would get a 301 and the platform could mark the deploy unhealthy. Keeping
+# /healthz/ exempt guarantees a clean 200 regardless of scheme.
+SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

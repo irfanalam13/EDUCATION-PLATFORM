@@ -47,49 +47,59 @@ services:
           name: edu-platform-redis
           property: connectionString
 
-  # ---- Celery worker (PAID — delete for free-tier deploys) -----------------
-  - type: worker
-    name: edu-platform-worker
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: starter
-    dockerCommand: celery -A config worker -l info --concurrency 2
-    envVars:
-      - fromGroup: edu-backend
-      - key: RUN_MIGRATIONS          # workers must NOT race the web role on migrate
-        value: "0"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: edu-platform-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: edu-platform-redis
-          property: connectionString
-
-  # ---- Celery beat scheduler (PAID — delete for free-tier deploys) ---------
-  - type: worker
-    name: edu-platform-beat
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: starter
-    dockerCommand: celery -A config beat -l info
-    envVars:
-      - fromGroup: edu-backend
-      - key: RUN_MIGRATIONS
-        value: "0"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: edu-platform-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: edu-platform-redis
-          property: connectionString
+  # ---- Celery worker + beat (PAID — commented out for a working free deploy) --
+  #
+  # Render has NO free background workers, and a Blueprint that contains a paid
+  # `worker` service fails to sync on a free account — which is why the previous
+  # version of this file errored on deploy. They are disabled by default so the
+  # Blueprint provisions cleanly on the free tier.
+  #
+  # To enable background jobs (scheduled notifications, analytics snapshots,
+  # subscription renewals) on a PAID plan: uncomment both services below AND flip
+  # USE_CELERY to "True" in the edu-backend env group. The quiz→XP→progress loop
+  # runs inline via transaction.on_commit either way, so it works without these.
+  #
+  # - type: worker
+  #   name: edu-platform-worker
+  #   runtime: docker
+  #   dockerfilePath: ./backend/Dockerfile
+  #   dockerContext: ./backend
+  #   plan: starter
+  #   dockerCommand: celery -A config worker -l info --concurrency 2
+  #   envVars:
+  #     - fromGroup: edu-backend
+  #     - key: RUN_MIGRATIONS          # workers must NOT race the web role on migrate
+  #       value: "0"
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: edu-platform-db
+  #         property: connectionString
+  #     - key: REDIS_URL
+  #       fromService:
+  #         type: keyvalue
+  #         name: edu-platform-redis
+  #         property: connectionString
+  #
+  # - type: worker
+  #   name: edu-platform-beat
+  #   runtime: docker
+  #   dockerfilePath: ./backend/Dockerfile
+  #   dockerContext: ./backend
+  #   plan: starter
+  #   dockerCommand: celery -A config beat -l info
+  #   envVars:
+  #     - fromGroup: edu-backend
+  #     - key: RUN_MIGRATIONS
+  #       value: "0"
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: edu-platform-db
+  #         property: connectionString
+  #     - key: REDIS_URL
+  #       fromService:
+  #         type: keyvalue
+  #         name: edu-platform-redis
+  #         property: connectionString
 
 # Shared env across web/worker/beat. SECRET_KEY is generated once and shared so
 # JWTs signed by the web role validate in the workers. ALLOWED_HOSTS is satisfied
@@ -108,7 +118,11 @@ envVarGroups:
       - key: USE_REDIS
         value: "True"
       - key: USE_CELERY
-        value: "True"                 # set False (and delete worker/beat) for free tier
+        # False for the free tier: no worker/beat services are provisioned, so
+        # tasks run inline (transaction.on_commit) instead of being queued to a
+        # broker that nothing consumes. Set "True" only after uncommenting the
+        # worker + beat services above on a paid plan.
+        value: "False"
       # Web origin(s) that may call the API. The Next.js BFF proxy is same-origin
       # so CORS is not strictly needed for the web app, but set it for safety and
       # for any direct browser/Expo-web calls. Update to your real Vercel domain.

@@ -125,11 +125,18 @@ Dockerfile's `COPY` paths are relative to `backend/`). Then set the env vars bel
 - **Health check**: `GET /healthz/` → `{"status":"ok"}` (set as the Render health path).
 - **First admin**: Render dashboard → service → **Shell** → `python manage.py createsuperuser`.
 
-> **Free-tier note:** Render has no free background workers. For a free deploy,
-> delete the `worker`/`beat` services from `render.yaml` (or skip them in Option B)
-> and set `USE_CELERY=False`. The quiz→XP→progress→leaderboard loop still runs
-> (it fires inline via `transaction.on_commit`); only the *scheduled* jobs
-> (notification dispatch, analytics snapshots) are skipped until you add a worker.
+> **Free-tier note:** Render has no free background workers, and a Blueprint that
+> contains a paid `worker` service fails to sync on a free account. The shipped
+> `render.yaml` is therefore **free-tier-ready by default**: the `worker`/`beat`
+> services are commented out and `USE_CELERY=False`. The
+> quiz→XP→progress→leaderboard loop still runs (it fires inline via
+> `transaction.on_commit`); only the *scheduled* jobs (notification dispatch,
+> analytics snapshots, subscription renewals) are skipped until you upgrade.
+>
+> **To enable background jobs on a paid plan:** uncomment the `worker` + `beat`
+> services in `render.yaml` and set `USE_CELERY=True` in the `edu-backend` env
+> group. Do not set `USE_CELERY=True` without a running worker — `.delay()` tasks
+> would queue to Redis with nothing to consume them.
 
 ### 3.2 Web → Vercel
 
