@@ -233,7 +233,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           # Context is backend/ — the Dockerfile's COPY paths are relative to it.
           context: ./backend
@@ -245,7 +245,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend_w
           file: frontend_w/Dockerfile
