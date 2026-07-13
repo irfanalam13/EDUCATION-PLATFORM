@@ -44,7 +44,7 @@ google-auth==2.55.0         # Google OAuth ID-token verification
 httpx==0.28.1
 
 # Reporting (institution analytics PDF + Excel exports)
-reportlab==4.4.5
+reportlab==5.0.0
 openpyxl==3.1.5
 
 # Observability (optional; activated when SENTRY_DSN is set)
