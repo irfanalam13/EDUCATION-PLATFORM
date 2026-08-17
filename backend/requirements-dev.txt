@@ -1,6 +1,6 @@
 # Dev / CI-only tooling. Kept out of requirements.txt so the runtime image stays
 # lean. Install locally with:  pip install -r requirements.txt -r requirements-dev.txt
-ruff==0.14.6          # lint + format (fast, replaces flake8/isort/black)
-coverage==7.6.10      # test coverage measurement
-bandit==1.8.6         # Python SAST (security linter)
-pip-audit==2.9.0      # dependency vulnerability audit
+ruff==0.16.3          # lint + format (fast, replaces flake8/isort/black)
+coverage==7.15.4      # test coverage measurement
+bandit==1.9.4         # Python SAST (security linter)
+pip-audit==2.10.1      # dependency vulnerability audit
