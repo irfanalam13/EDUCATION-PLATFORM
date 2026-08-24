@@ -3,17 +3,17 @@
 #   pip install -U <pkg> && pip freeze   (then update the pin here)
 
 # Core
-Django==6.0.1
-djangorestframework==3.17.1
+Django==6.1
+djangorestframework==3.18.0
 djangorestframework-simplejwt==5.5.1
 django-environ==0.14.0
 django-cors-headers==4.9.0
 django-filter==25.2
-drf-spectacular==0.29.0
+drf-spectacular==0.30.0
 django-extensions==4.1
 
 # Server
-gunicorn==26.0.0
+gunicorn==26.1.0
 whitenoise==6.12.0          # serve hashed static files from the app server
 
 # Database
@@ -21,24 +21,24 @@ psycopg[binary]==3.3.4
 
 # Async / cache
 celery==5.6.3
-redis==8.0.0
+redis==8.1.0
 django-redis==7.0.0
 
 # Storage / media
 django-storages[s3]==1.14.6
-boto3==1.43.34
-Pillow==12.2.0
+boto3==1.43.78
+Pillow==12.3.0
 
 # AI / RAG
 google-genai==1.51.0        # Gemini chat (primary answer provider)
 anthropic==0.111.0          # Claude chat (RAG + general answers; fallback)
-pymupdf==1.27.2.3           # PDF text extraction
+pymupdf==1.28.2           # PDF text extraction
 # Embeddings are pluggable (AI_EMBEDDING_PROVIDER). Install the one you use:
-voyageai==0.4.1             # optional: Voyage embeddings (Anthropic-recommended)
+voyageai==0.5.0             # optional: Voyage embeddings (Anthropic-recommended)
 openai==2.43.0              # optional: OpenAI embeddings
 
 # Auth
-google-auth==2.55.0         # Google OAuth ID-token verification
+google-auth==2.56.3         # Google OAuth ID-token verification
 
 # Payments (apps.billing) — gateway REST calls (Stripe / Khalti / eSewa)
 httpx==0.28.1
@@ -48,4 +48,4 @@ reportlab==4.4.5
 openpyxl==3.1.5
 
 # Observability (optional; activated when SENTRY_DSN is set)
-sentry-sdk==2.63.0
+sentry-sdk==2.68.0
